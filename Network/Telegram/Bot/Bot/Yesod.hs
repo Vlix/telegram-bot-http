@@ -1,0 +1,1 @@
+module Network.Telegram.Bot.Yesod where
