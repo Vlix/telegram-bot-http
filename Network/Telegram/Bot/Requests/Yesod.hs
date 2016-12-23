@@ -1,4 +1,4 @@
-module Network.Telegram.Bot.Yesod where
+module Network.Telegram.Bot.Requests.Yesod where
 
 
 import           Control.Exception
