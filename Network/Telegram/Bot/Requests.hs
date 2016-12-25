@@ -17,7 +17,6 @@ import           Data.Scientific            (floatingOrInteger)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
-import qualified Data.Text.Lazy.Encoding    as TLE
 import           Data.Typeable
 
 import           Network.HTTP.Client        hiding (httpLbs)
@@ -96,8 +95,8 @@ downloadFileRequestToDisk saveTo req token mngr = do
   tgFile <- getFileRequest req token mngr
   case tgFile of
     Right (TG.OKResponse (TG.File _ _ (Just urlpath)) _) -> do
-      req <- parseRequest $ "https://api.telegram.org/file/bot" <> T.unpack token <> "/" <> T.unpack urlpath
-      liftIO $ withResponse req mngr go
+      request <- parseRequest $ "https://api.telegram.org/file/bot" <> T.unpack token <> "/" <> T.unpack urlpath
+      liftIO $ withResponse request mngr go
     Right (TG.OKResponse (TG.File _ _ Nothing) mdesc) -> return $ Just $
       ("downloadFileRequestToDisk: NO URL GIVEN" <> maybe "" (" - WITH DESC: " <>) mdesc,Nothing)
     Right (TG.ErrorResponse desc mcode mrp) -> return $ Just $
@@ -202,26 +201,26 @@ getWebhookInfoRequest = telegramGetRequest "getWebhookInfo" []
 ---------------------------------
 
 sendPhotoFileRequest :: (MonadIO m, MonadThrow m) => TelegramRequest TG.SendPhotoRequest m TG.Message
-sendPhotoFileRequest = telegramPostFileRequest "sendPhoto" []
+sendPhotoFileRequest = telegramPostFileRequest "sendPhoto"
 
 sendAudioFileRequest :: (MonadIO m, MonadThrow m) => TelegramRequest TG.SendAudioRequest m TG.Message
-sendAudioFileRequest = telegramPostFileRequest "sendAudio" []
+sendAudioFileRequest = telegramPostFileRequest "sendAudio"
 
 sendDocumentFileRequest :: (MonadIO m, MonadThrow m) => TelegramRequest TG.SendDocumentRequest m TG.Message
-sendDocumentFileRequest = telegramPostFileRequest "sendDocument" []
+sendDocumentFileRequest = telegramPostFileRequest "sendDocument"
 
 sendStickerFileRequest :: (MonadIO m, MonadThrow m) => TelegramRequest TG.SendStickerRequest m TG.Message
-sendStickerFileRequest = telegramPostFileRequest "sendSticker" []
+sendStickerFileRequest = telegramPostFileRequest "sendSticker"
 
 sendVideoFileRequest :: (MonadIO m, MonadThrow m) => TelegramRequest TG.SendVideoRequest m TG.Message
-sendVideoFileRequest = telegramPostFileRequest "sendVideo" []
+sendVideoFileRequest = telegramPostFileRequest "sendVideo"
 
 sendVoiceFileRequest :: (MonadIO m, MonadThrow m) => TelegramRequest TG.SendVoiceRequest m TG.Message
-sendVoiceFileRequest = telegramPostFileRequest "sendVoice" []
+sendVoiceFileRequest = telegramPostFileRequest "sendVoice"
 
 
 setWebhookFileRequest :: (MonadIO m, MonadThrow m) => TelegramRequest TG.WebhookRequest m Bool
-setWebhookFileRequest = telegramPostFileRequest "setWebhook" []
+setWebhookFileRequest = telegramPostFileRequest "setWebhook"
 
 
 ----------------------
@@ -235,8 +234,8 @@ setWebhookFileRequest = telegramPostFileRequest "setWebhook" []
 
 -- | Please use the `telegramPostJSONRequest` if you want to send a url or a file_id
 telegramPostFileRequest :: (MonadIO m, MonadThrow m, ToJSON a, FromJSON b) =>
-                       String -> [(ByteString,Maybe ByteString)] -> a -> Token -> Manager -> m (Either TelegramBadResponse (TG.Response b))
-telegramPostFileRequest url querystring a token mngr = do
+                       String -> a -> Token -> Manager -> m (Either TelegramBadResponse (TG.Response b))
+telegramPostFileRequest url a token mngr = do
   request <- goPR token url
   case toJSON a of
     Object o -> do
@@ -245,7 +244,7 @@ telegramPostFileRequest url querystring a token mngr = do
     _ -> liftIO $ throwIO NotMultipartable
  where
   valueToPart :: (MonadIO m, MonadThrow m) => (Text,Value) -> m Part
-  valueToPart (t,Number n)   | Right i <- floatingOrInteger n = return . partBS t . TE.encodeUtf8 $ tshow i
+  valueToPart (t,Number n)   | Right i <- (floatingOrInteger n :: Either Double Integer) = return . partBS t . TE.encodeUtf8 $ tshow i
                              | otherwise = return . partBS t . TE.encodeUtf8 $ tshow n
   valueToPart (t,Bool True)  = return $ partBS t "true"
   valueToPart (t,Bool False) = return $ partBS t "false"
@@ -257,10 +256,10 @@ telegramPostFileRequest url querystring a token mngr = do
                                 = return $ fileFromUrl t $ T.unpack s
                              | otherwise = return $ partBS t $ TE.encodeUtf8 s
   valueToPart (t,v)          = return $ partLBS t $ encode v
-  fileFromPath name path = let part = (partFileSource name path)
-                           in part { partFilename = getNameFromPath <$> partFilename part }
-  fileFromUrl name url   = partFileRequestBodyM name (getNameFromPath url) $ do
-    fmap (RequestBodyLBS . responseBody) . flip httpLbs mngr =<< parseRequest url
+  fileFromPath name path     = part { partFilename = getNameFromPath <$> partFilename part }
+                         where part = (partFileSource name path)
+  fileFromUrl name urlpath   = partFileRequestBodyM name (getNameFromPath urlpath) $ do
+    fmap (RequestBodyLBS . responseBody) . flip httpLbs mngr =<< parseRequest urlpath
   getNameFromPath s = if mlastpart == []
                         then s
                         else getNameFromPath $ drop 1 mlastpart

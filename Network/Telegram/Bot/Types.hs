@@ -1,7 +1,6 @@
 module Network.Telegram.Bot.Types where
 
 
-import           Data.Maybe         (Maybe)
 import           Data.Text          (Text)
 import           Data.ByteString    (ByteString)
 

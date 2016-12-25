@@ -19,6 +19,7 @@ library
   exposed-modules:     Network.Telegram.Bot
                        Network.Telegram.Bot.Requests
                        Network.Telegram.Bot.Types
+                       Network.Telegram.Bot.Yesod
                        Network.Telegram.Bot.Requests.Yesod
   -- other-modules:       
   -- other-extensions:    
