@@ -1,4 +1,53 @@
-module Network.Telegram.Bot.Requests.Yesod where
+module Network.Telegram.Bot.Requests.Yesod
+  ( TelegramRequest
+  , TelegramException (..)
+
+  , getMeRequest
+  , sendChatActionRequest
+  , sendMessageRequest
+  , forwardMessageRequest
+  , answerCallbackQueryRequest
+  , sendPhotoRequest
+  , sendAudioRequest
+  , sendDocumentRequest
+  , sendStickerRequest
+  , sendVideoRequest
+  , sendVoiceRequest
+  , sendLocationRequest
+  , sendVenueRequest
+  , sendContactRequest
+  , getUserProfilePhotosRequest
+  , getFileRequest
+  , downloadFileRequestToDisk
+  , kickChatMemberRequest
+  , leaveChatRequest
+  , unbanChatMemberRequest
+  , getChatRequest
+  , getChatAdministratorsRequest
+  , getChatMembersCountRequest
+  , getChatMemberRequest
+  , editMessageTextRequest
+  , editMessageCaptionRequest
+  , editMessageReplyMarkupRequest
+  , answerInlineQueryRequest
+  , sendGameRequest
+  , setGameScoreRequest
+  , getGameHighScoresRequest
+  , getUpdatesRequest
+  , setWebhookRequest
+  , deleteWebhookRequest
+
+  , getWebhookInfoRequest
+  , sendPhotoFileRequest
+  , sendAudioFileRequest
+  , sendDocumentFileRequest
+  , sendStickerFileRequest
+  , sendVideoFileRequest
+  , sendVoiceFileRequest
+  , setWebhookFileRequest
+
+  , inputFileFields
+  ) where
 
 
 import           Control.Exception
@@ -89,6 +138,8 @@ getUserProfilePhotosRequest = telegramPostJSONRequest "getUserProfilePhotos" []
 getFileRequest :: (MonadThrow m, MonadIO m, HasHttpManager env, MonadReader env m) => TelegramRequest TG.FileRequest m TG.File
 getFileRequest = telegramPostJSONRequest "getFile" []
 
+-- | Returns Nothing on success and a tuple with the error message and maybe
+--   Response Parameters to maybe automatically handle certain errors on failure
 downloadFileRequestToDisk :: (MonadThrow m, MonadIO m, HasHttpManager env, MonadReader env m) =>
                           Token -> FilePath -> TG.FileRequest -> m (Maybe (Text,Maybe TG.ResponseParameters))
 downloadFileRequestToDisk token saveTo req = do
