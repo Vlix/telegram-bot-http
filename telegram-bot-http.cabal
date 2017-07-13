@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                telegram-bot-http
-version:             0.1.0.0
+version:             0.1.1.0
 synopsis:            Network package for connecting to the Telegram Bot API using the Web.Telegram package
 -- description:         
 license:             MIT
@@ -24,18 +24,18 @@ library
   -- other-modules:       
   -- other-extensions:    
   default-extensions:  OverloadedStrings
-  build-depends:       base                 >= 4.8  && < 4.9
-                     , telegram-bot         >= 0.2  && < 0.3
-                     , http-client          >= 0.4  && < 0.5
-                     , http-conduit         >= 2.1  && < 2.2
-                     , http-types           >= 0.8
-                     , aeson                >= 0.6  && < 0.12
-                     , text                 >= 0.11 && < 2.0
-                     , transformers         >= 0.4  && < 0.5
-                     , mtl                  >= 2.2  && < 2.3
-                     , bytestring           >= 0.10 && < 0.11
-                     , exceptions           >= 0.8  && < 0.9
-                     , scientific           >= 0.3  && < 0.4
+  build-depends:       base
+                     , telegram-bot >= 0.2  && < 0.3
+                     , http-client
+                     , http-conduit
+                     , http-types
+                     , aeson
+                     , text
+                     , transformers
+                     , mtl
+                     , bytestring
+                     , exceptions
+                     , scientific
                      , unordered-containers
   -- hs-source-dirs:      
   default-language:    Haskell2010
