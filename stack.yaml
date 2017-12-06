@@ -38,7 +38,7 @@ resolver: lts-8.22
 packages:
 - location:
    git: https://github.com/Vlix/telegram-bot.git
-   commit: 67a39ae41731a5b6bf9afdf76138b41c3a167694
+   commit: e60aa4711fcc4f787e6345454546f87841d70f5d
   extra-dep: true
 - '.'
 # Dependency packages to be pulled from upstream that are not in the resolver
