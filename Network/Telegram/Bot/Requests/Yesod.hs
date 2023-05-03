@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 module Network.Telegram.Bot.Requests.Yesod
   ( TelegramRequest
   , TelegramException (..)
@@ -56,11 +57,12 @@ import           Control.Monad.Reader       (MonadReader,asks)
 import           Control.Monad.IO.Class     (MonadIO,liftIO)
 
 import           Data.Aeson
+import           Data.Aeson.Key (toText)
+import qualified Data.Aeson.KeyMap          as KM
+import qualified Data.Bifunctor
 import           Data.ByteString            (ByteString)
 import qualified Data.ByteString            as B
 import qualified Data.ByteString.Lazy       as LB
-import qualified Data.HashMap.Strict        as HM
-import           Data.Monoid                ((<>))
 import           Data.Scientific            (floatingOrInteger)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
@@ -291,12 +293,12 @@ telegramPostFileRequest url token a = do
   request <- goPR token url
   case toJSON a of
     Object o -> do
-      partlist <- mapM valueToPart $ HM.toList o
+      partlist <- mapM (valueToPart . Data.Bifunctor.first toText) (KM.toList o)
       goHTTP =<< formDataBody partlist request
     _ -> liftIO $ throwIO NotMultipartable
  where
   valueToPart :: (MonadThrow m, MonadIO m, HasHttpManager env, MonadReader env m) => (Text,Value) -> m Part
-  valueToPart (t,Number n)   | Right i <- (floatingOrInteger n :: Either Double Integer) = return . partBS t . TE.encodeUtf8 $ tshow i
+  valueToPart (t,Number n)   | Right i <- floatingOrInteger n :: Either Double Integer = return . partBS t . TE.encodeUtf8 $ tshow i
                              | otherwise = return . partBS t . TE.encodeUtf8 $ tshow n
   valueToPart (t,Bool True)  = return $ partBS t "true"
   valueToPart (t,Bool False) = return $ partBS t "false"
@@ -304,15 +306,15 @@ telegramPostFileRequest url token a = do
                              , T.take 1 s == "/"
                                 = return $ fileFromPath t $ T.unpack s
                              | t `elem` inputFileFields
-                             , (T.take 7 s == "http://" || T.take 8 s == "https://")
-                                = return . fileFromUrl t (T.unpack s) =<< asks getHttpManager
+                             , T.take 7 s == "http://" || T.take 8 s == "https://"
+                                = asks $ fileFromUrl t (T.unpack s) . getHttpManager
                              | otherwise = return $ partBS t $ TE.encodeUtf8 s
   valueToPart (t,v)          = return $ partLBS t $ encode v
   fileFromPath name path'    = part { partFilename = getNameFromPath <$> partFilename part }
-                         where part = (partFileSource name path')
+                         where part = partFileSource name path'
   fileFromUrl name urlpath mngr = partFileRequestBodyM name (getNameFromPath urlpath) $ do
     fmap (RequestBodyLBS . responseBody) . flip CLIENT.httpLbs mngr =<< parseRequest urlpath
-  getNameFromPath s = if mlastpart == []
+  getNameFromPath s = if null mlastpart
                         then s
                         else getNameFromPath $ drop 1 mlastpart
     where mlastpart = dropWhile (/= '/') s
@@ -320,7 +322,7 @@ telegramPostFileRequest url token a = do
 inputFileFields :: [Text]
 inputFileFields = ["audio","photo","document","sticker","video","voice","certificate"]
 
-data TelegramException = NotMultipartable deriving (Show, Typeable)
+data TelegramException = NotMultipartable deriving stock (Show, Typeable)
 instance Exception TelegramException
 
 
@@ -341,7 +343,7 @@ telegramGetRequest :: (MonadThrow m, MonadIO m, HasHttpManager env, MonadReader 
 telegramGetRequest url querystring token = do
   req <- goPR token url
   let request = flip setQueryString req querystring
-  goHTTP request 
+  goHTTP request
 
 
 goPR :: (MonadThrow m, MonadIO m, HasHttpManager env, MonadReader env m) => Token -> String -> m Request

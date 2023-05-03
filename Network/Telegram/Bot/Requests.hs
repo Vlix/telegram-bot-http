@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternGuards #-}
+{-# LANGUAGE DerivingStrategies, PatternGuards #-}
 
 module Network.Telegram.Bot.Requests
   ( TelegramRequest
@@ -57,11 +57,10 @@ import           Control.Monad.Catch        (MonadThrow)
 import           Control.Monad.IO.Class     (MonadIO, liftIO)
 
 import           Data.Aeson
+import qualified Data.Aeson.KeyMap          as KM
 import           Data.ByteString            (ByteString)
 import qualified Data.ByteString            as B
 import qualified Data.ByteString.Lazy       as LB
-import qualified Data.HashMap.Strict        as HM
-import           Data.Monoid                ((<>))
 import           Data.Scientific            (floatingOrInteger)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
@@ -76,6 +75,8 @@ import           Network.HTTP.Types         (hContentType)
 import qualified Web.Telegram.Bot           as TG
 
 import           Network.Telegram.Bot.Types
+import qualified Data.Bifunctor
+import Data.Aeson.Key
 
 
 type TelegramRequest a m b = a -> Token -> Manager -> m (Either TelegramBadResponse (TG.Response b))
@@ -290,12 +291,13 @@ telegramPostFileRequest url a token mngr = do
   request <- goPR token url
   case toJSON a of
     Object o -> do
-      partlist <- mapM valueToPart $ HM.toList o
+      partlist <- mapM (valueToPart . Data.Bifunctor.first toText) $ KM.toList o
       flip goHTTP mngr =<< formDataBody partlist request
     _ -> liftIO $ throwIO NotMultipartable
  where
   valueToPart :: (MonadIO m, MonadThrow m) => (Text,Value) -> m Part
-  valueToPart (t,Number n)   | Right i <- (floatingOrInteger n :: Either Double Integer) = return . partBS t . TE.encodeUtf8 $ tshow i
+  valueToPart (t,Number n)   | Right i <- floatingOrInteger n :: Either Double Integer
+                             = return . partBS t . TE.encodeUtf8 $ tshow i
                              | otherwise = return . partBS t . TE.encodeUtf8 $ tshow n
   valueToPart (t,Bool True)  = return $ partBS t "true"
   valueToPart (t,Bool False) = return $ partBS t "false"
@@ -303,15 +305,15 @@ telegramPostFileRequest url a token mngr = do
                              , T.take 1 s == "/"
                                 = return $ fileFromPath t $ T.unpack s
                              | t `elem` inputFileFields
-                             , (T.take 7 s == "http://" || T.take 8 s == "https://")
+                             , T.take 7 s == "http://" || T.take 8 s == "https://"
                                 = return $ fileFromUrl t $ T.unpack s
                              | otherwise = return $ partBS t $ TE.encodeUtf8 s
   valueToPart (t,v)          = return $ partLBS t $ encode v
-  fileFromPath name path     = part { partFilename = getNameFromPath <$> partFilename part }
-                         where part = (partFileSource name path)
+  fileFromPath name path'    = part { partFilename = getNameFromPath <$> partFilename part }
+                         where part = partFileSource name path'
   fileFromUrl name urlpath   = partFileRequestBodyM name (getNameFromPath urlpath) $ do
     fmap (RequestBodyLBS . responseBody) . flip httpLbs mngr =<< parseRequest urlpath
-  getNameFromPath s = if mlastpart == []
+  getNameFromPath s = if null mlastpart
                         then s
                         else getNameFromPath $ drop 1 mlastpart
     where mlastpart = dropWhile (/= '/') s
@@ -319,7 +321,7 @@ telegramPostFileRequest url a token mngr = do
 inputFileFields :: [Text]
 inputFileFields = ["audio","photo","document","sticker","video","voice","certificate"]
 
-data TelegramException = NotMultipartable deriving (Show, Typeable)
+data TelegramException = NotMultipartable deriving stock (Show, Typeable)
 instance Exception TelegramException
 
 
@@ -340,7 +342,7 @@ telegramGetRequest :: (MonadIO m, MonadThrow m, FromJSON a) =>
 telegramGetRequest url querystring token mngr = do
   req <- goPR token url
   let request = flip setQueryString req querystring
-  goHTTP request mngr 
+  goHTTP request mngr
 
 
 goPR :: (Monad m, MonadThrow m) => Token -> String -> m Request
